@@ -1,0 +1,14 @@
+--- a/src/base/preferences.cpp
++++ b/src/base/preferences.cpp
+@@ -599,11 +599,7 @@ void Preferences::setWebUiPort(const qui
+ 
+ bool Preferences::useUPnPForWebUIPort() const
+ {
+-#ifdef DISABLE_GUI
+-    return value(u"Preferences/WebUI/UseUPnP"_qs, true);
+-#else
+     return value(u"Preferences/WebUI/UseUPnP"_qs, false);
+-#endif
+ }
+ 
+ void Preferences::setUPnPForWebUIPort(const bool enabled)

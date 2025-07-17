@@ -1,0 +1,4 @@
+# Full source provided in debian/missing-sources
+source-is-missing [src/webui/www/private/scripts/lib/MooTools-Core-1.6.0-compat-compressed.js]
+source-is-missing [src/webui/www/private/scripts/lib/MooTools-More-1.6.0-compat-compressed.js]
+source-is-missing [src/webui/www/private/scripts/lib/mocha.min.js]
