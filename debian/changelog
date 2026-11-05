@@ -1,3 +1,23 @@
+qbittorrent (5.1.0-2deepin1) unstable; urgency=medium
+
+  * Replace the unsatisfiable runtime dependency on qt6-svg-plugins with
+    libqt6svg6.
+    - deepin does not split the Qt6 SVG plugins into a separate binary
+      package (Debian does so since qt6-svg 6.7.2-5), so qt6-svg-plugins
+      has no install candidate and qbittorrent cannot be installed.
+    - In the deepin packaging libqsvgicon.so and libqsvg.so are shipped by
+      libqt6svg6, which is the package that actually provides the SVG icon
+      engine and image format plugins.
+    - The GUI needs the SVG icon engine at runtime: all 360 icons in
+      src/icons/icons.qrc are SVG and are loaded via QIcon from
+      src/gui/uithememanager.cpp, while the build only does
+      find_package(Qt6 ... Svg) without linking Qt::Svg, so
+      ${shlibs:Depends} does not pull in libqt6svg6.
+    - qbittorrent-nox does not load SVG files through Qt and is left
+      unchanged.
+
+ -- lichenggang <lichenggang@uniontech.com>  Thu, 05 Nov 2026 17:45:28 +0800
+
 qbittorrent (5.1.0-2) unstable; urgency=medium
 
   * Add two patches from 5.1.2 version to fix security issues: WebAPI, Rss
