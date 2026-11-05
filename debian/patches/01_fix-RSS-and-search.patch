@@ -1,0 +1,185 @@
+From d379fa30350bd2aaf50656c7cd5fbaf6f6219773 Mon Sep 17 00:00:00 2001
+From: "Vladimir Golovnev (Glassez)" <glassez@yandex.ru>
+Date: Mon, 23 Jun 2025 13:14:37 +0300
+Subject: [PATCH] Prevent opening local files if web page is expected
+
+--- a/src/base/rss/rss_article.cpp
++++ b/src/base/rss/rss_article.cpp
+@@ -48,16 +48,16 @@ const QString Article::KeyIsRead = u"isR
+ 
+ Article::Article(Feed *feed, const QVariantHash &varHash)
+     : QObject(feed)
+-    , m_feed(feed)
+-    , m_guid(varHash.value(KeyId).toString())
+-    , m_date(varHash.value(KeyDate).toDateTime())
+-    , m_title(varHash.value(KeyTitle).toString())
+-    , m_author(varHash.value(KeyAuthor).toString())
+-    , m_description(varHash.value(KeyDescription).toString())
+-    , m_torrentURL(varHash.value(KeyTorrentURL).toString())
+-    , m_link(varHash.value(KeyLink).toString())
+-    , m_isRead(varHash.value(KeyIsRead, false).toBool())
+-    , m_data(varHash)
++    , m_feed {feed}
++    , m_guid {varHash.value(KeyId).toString()}
++    , m_date {varHash.value(KeyDate).toDateTime()}
++    , m_title {varHash.value(KeyTitle).toString()}
++    , m_author {varHash.value(KeyAuthor).toString()}
++    , m_description {varHash.value(KeyDescription).toString()}
++    , m_torrentURL {varHash.value(KeyTorrentURL).toString()}
++    , m_link {varHash.value(KeyLink).toString()}
++    , m_isRead {varHash.value(KeyIsRead, false).toBool()}
++    , m_data {varHash}
+ {
+ }
+ 
+--- a/src/gui/rss/rsswidget.cpp
++++ b/src/gui/rss/rsswidget.cpp
+@@ -40,6 +40,7 @@
+ #include <QString>
+ 
+ #include "base/global.h"
++#include "base/logger.h"
+ #include "base/net/downloadmanager.h"
+ #include "base/preferences.h"
+ #include "base/rss/rss_article.h"
+@@ -415,16 +416,52 @@ void RSSWidget::downloadSelectedTorrents
+ // open the url of the selected RSS articles in the Web browser
+ void RSSWidget::openSelectedArticlesUrls()
+ {
++    qsizetype emptyLinkCount = 0;
++    qsizetype badLinkCount = 0;
++    QString articleTitle;
+     for (QListWidgetItem *item : asConst(m_ui->articleListWidget->selectedItems()))
+     {
+         auto *article = item->data(Qt::UserRole).value<RSS::Article *>();
+         Q_ASSERT(article);
+ 
+-        // Mark as read
+         article->markAsRead();
+ 
+-        if (!article->link().isEmpty())
+-            QDesktopServices::openUrl(QUrl(article->link()));
++        const QString articleLink = article->link();
++        const QUrl articleLinkURL {articleLink};
++        if (articleLinkURL.isEmpty()) [[unlikely]]
++        {
++            if (articleTitle.isEmpty())
++                articleTitle = article->title();
++            ++emptyLinkCount;
++        }
++        else if (articleLinkURL.isLocalFile()) [[unlikely]]
++        {
++            if (badLinkCount == 0)
++                articleTitle = article->title();
++            ++badLinkCount;
++
++            LogMsg(tr("Blocked opening RSS article URL. URL pointing to local file might be malicious behaviour. Article: \"%1\". URL: \"%2\".")
++                    .arg(article->title(), articleLink), Log::WARNING);
++        }
++        else [[likely]]
++        {
++            QDesktopServices::openUrl(articleLinkURL);
++        }
++    }
++
++    if (badLinkCount > 0)
++    {
++        QString message = tr("Blocked opening RSS article URL. The following article URL is pointing to local file and it may be malicious behaviour:\n%1").arg(articleTitle);
++        if (badLinkCount > 1)
++            message.append(u"\n" + tr("There are %1 more articles with the same issue.").arg(badLinkCount - 1));
++        QMessageBox::warning(this, u"qBittorrent"_s, message, QMessageBox::Ok);
++    }
++    else if (emptyLinkCount > 0)
++    {
++        QString message = tr("The following article has no news URL provided:\n%1").arg(articleTitle);
++        if (emptyLinkCount > 1)
++            message.append(u"\n" + tr("There are %1 more articles with the same issue.").arg(emptyLinkCount - 1));
++        QMessageBox::warning(this, u"qBittorrent"_s, message, QMessageBox::Ok);
+     }
+ }
+ 
+--- a/src/gui/search/searchjobwidget.cpp
++++ b/src/gui/search/searchjobwidget.cpp
+@@ -35,10 +35,12 @@
+ #include <QHeaderView>
+ #include <QKeyEvent>
+ #include <QMenu>
++#include <QMessageBox>
+ #include <QPalette>
+ #include <QStandardItemModel>
+ #include <QUrl>
+ 
++#include "base/logger.h"
+ #include "base/preferences.h"
+ #include "base/search/searchdownloadhandler.h"
+ #include "base/search/searchhandler.h"
+@@ -319,15 +321,52 @@ void SearchJobWidget::downloadTorrents(c
+         downloadTorrent(rowIndex, option);
+ }
+ 
+-void SearchJobWidget::openTorrentPages() const
++void SearchJobWidget::openTorrentPages()
+ {
+-    const QModelIndexList rows {m_ui->resultsBrowser->selectionModel()->selectedRows()};
++    const QModelIndexList rows = m_ui->resultsBrowser->selectionModel()->selectedRows();
++    qsizetype emptyLinkCount = 0;
++    qsizetype badLinkCount = 0;
++    QString warningEntryName;
+     for (const QModelIndex &rowIndex : rows)
+     {
+-        const QString descrLink = m_proxyModel->data(
+-                    m_proxyModel->index(rowIndex.row(), SearchSortModel::DESC_LINK)).toString();
+-        if (!descrLink.isEmpty())
+-            QDesktopServices::openUrl(QUrl::fromEncoded(descrLink.toUtf8()));
++        const QString entryName = m_proxyModel->index(rowIndex.row(), SearchSortModel::NAME).data().toString();
++        const QString descrLink = m_proxyModel->index(rowIndex.row(), SearchSortModel::DESC_LINK).data().toString();
++
++        const QUrl descrLinkURL {descrLink};
++        if (descrLinkURL.isEmpty()) [[unlikely]]
++        {
++            if (warningEntryName.isEmpty())
++                warningEntryName = entryName;
++            ++emptyLinkCount;
++        }
++        else if (descrLinkURL.isLocalFile()) [[unlikely]]
++        {
++            if (badLinkCount == 0)
++                warningEntryName = entryName;
++            ++badLinkCount;
++
++            LogMsg(tr("Blocked opening search result description page URL. URL pointing to local file might be malicious behaviour. Name: \"%1\". URL: \"%2\".")
++                    .arg(entryName, descrLink), Log::WARNING);
++        }
++        else [[likely]]
++        {
++            QDesktopServices::openUrl(descrLinkURL);
++        }
++    }
++
++    if (badLinkCount > 0)
++    {
++        QString message = tr("Blocked opening search result description page URL. The following result URL is pointing to local file and it may be malicious behaviour:\n%1").arg(warningEntryName);
++        if (badLinkCount > 1)
++            message.append(u"\n" + tr("There are %1 more results with the same issue.").arg(badLinkCount - 1));
++        QMessageBox::warning(this, u"qBittorrent"_s, message, QMessageBox::Ok);
++    }
++    else if (emptyLinkCount > 0)
++    {
++        QString message = tr("Entry \"%1\" has no description page URL provided.").arg(warningEntryName);
++        if (emptyLinkCount > 1)
++            message.append(u"\n" + tr("There are %1 more entries with the same issue.").arg(emptyLinkCount - 1));
++        QMessageBox::warning(this, u"qBittorrent"_s, message, QMessageBox::Ok);
+     }
+ }
+ 
+--- a/src/gui/search/searchjobwidget.h
++++ b/src/gui/search/searchjobwidget.h
+@@ -127,7 +127,7 @@ private:
+     void onUIThemeChanged();
+ 
+     void downloadTorrents(AddTorrentOption option = AddTorrentOption::Default);
+-    void openTorrentPages() const;
++    void openTorrentPages();
+     void copyTorrentURLs() const;
+     void copyTorrentDownloadLinks() const;
+     void copyTorrentNames() const;

@@ -1,0 +1,32 @@
+From 9b29d37d210f28f46eb4758611d7b06f4603b9d1 Mon Sep 17 00:00:00 2001
+From: Chocobo1 <Chocobo1@users.noreply.github.com>
+Date: Mon, 30 Jun 2025 01:39:03 +0800
+Subject: [PATCH] WebAPI: Trim leading whitespaces on Run External Program
+ fields
+
+Hacked qbt instances may contain malicious script placed in Run External Program and the script
+will attempt to hide itself by adding a lot whitespaces at the start of the command string.
+Users may mistake the field of being empty but is actually not.
+So trim the leading whitespaces to easily expose the malicious script.
+
+Note that GUI already trim the fields and only WebAPI doesn't trim them. This patch will unify
+the behavior.
+Related: https://github.com/qbittorrent/docker-qbittorrent-nox/issues/71#issuecomment-2993567440
+
+--- a/src/webui/api/appcontroller.cpp
++++ b/src/webui/api/appcontroller.cpp
+@@ -673,12 +673,12 @@ void AppController::setPreferencesAction
+     if (hasKey(u"autorun_on_torrent_added_enabled"_s))
+         pref->setAutoRunOnTorrentAddedEnabled(it.value().toBool());
+     if (hasKey(u"autorun_on_torrent_added_program"_s))
+-        pref->setAutoRunOnTorrentAddedProgram(it.value().toString());
++        pref->setAutoRunOnTorrentAddedProgram(it.value().toString().trimmed());
+     // Run an external program on torrent finished
+     if (hasKey(u"autorun_enabled"_s))
+         pref->setAutoRunOnTorrentFinishedEnabled(it.value().toBool());
+     if (hasKey(u"autorun_program"_s))
+-        pref->setAutoRunOnTorrentFinishedProgram(it.value().toString());
++        pref->setAutoRunOnTorrentFinishedProgram(it.value().toString().trimmed());
+ 
+     // Connection
+     // Listening Port
