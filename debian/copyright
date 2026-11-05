@@ -32,8 +32,7 @@ Copyright: 2016, Alexandr Milovantsev <dzmat@yandex.ru>
            2020, thalieht
 License: GPL-3+
 
-Files: build-aux/*
-       src/icons/flags/icons-set-readme.txt
+Files: src/icons/flags/icons-set-readme.txt
        src/webui/www/private/scripts/client.js
        src/webui/www/private/scripts/download.js
        src/webui/www/private/scripts/dynamicTable.js
@@ -55,12 +54,8 @@ Copyright: 2006, Christophe Dumez <chris@qbittorrent.org>
            2006-2022, The qBittorrent project
 License: GPL-2+
 
-Files: dist/unix/org.qbittorrent.qBittorrent.appdata.xml
-Copyright: 2014, sledgehammer999 <sledgehammer999@qbittorrent.org>
-License: GPL-2
-
 Files: debian/*
-Copyright: 2021-2023, Christian Marillat <marillat@debian.org>
+Copyright: 2021-2025, Christian Marillat <marillat@debian.org>
            2008, Cristian Greco
 License: GPL-3+
 

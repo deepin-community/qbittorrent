@@ -3,14 +3,14 @@ Section: net
 Priority: optional
 Maintainer: Christian Marillat <marillat@debian.org>
 Homepage: https://www.qbittorrent.org/
-Standards-Version: 4.6.1
-Build-Depends: debhelper-compat (= 13), libtorrent-rasterbar-dev (>= 2.0.4~),
- libboost-dev, libqt5svg5-dev, qtbase5-dev (>= 5.2.0), qttools5-dev-tools,
- zlib1g-dev
+Standards-Version: 4.7.2
+Build-Depends: debhelper-compat (= 13), cmake, libtorrent-rasterbar-dev (>= 2.0.9~),
+ libboost-dev (>= 1.76~), zlib1g-dev, qt6-base-dev, qt6-tools-dev, qt6-svg-dev,
+ libxkbcommon-dev, systemd-dev, ninja-build, qt6-base-private-dev, pkgconf,
 
 Package: qbittorrent
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libqt5sql5-sqlite
+Depends: ${shlibs:Depends}, ${misc:Depends}, libqt6sql6-sqlite, qt6-svg-plugins,
 Description: bittorrent client based on libtorrent-rasterbar with a Qt5 GUI
  BitTorrent client written in C++ and based on libtorrent-rasterbar with a
  Qt5 user interface. qBittorrent is a feature rich but lightweight client
@@ -33,7 +33,7 @@ Description: bittorrent client based on libtorrent-rasterbar with a Qt5 GUI
 
 Package: qbittorrent-nox
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libqt5sql5-sqlite
+Depends: ${shlibs:Depends}, ${misc:Depends}, libqt6sql6-sqlite,
 Description: bittorrent client based on libtorrent-rasterbar (without X support)
  BitTorrent client written in C++ and based on libtorrent-rasterbar.
  qBittorrent-nox is a version of qBittorrent (Qt5 application) that does not
